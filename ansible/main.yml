@@ -1,3 +1,5 @@
+# All machines sudo setup
+
 - hosts: "*"
   become: yes
   tasks:
@@ -88,6 +90,8 @@
         state: mounted
       when: ssd_found.stat.exists
 
+
+# Main Reference sudo setup
 - hosts: "main_references"
   become: yes
   tasks:
@@ -98,6 +102,8 @@
           - gpsd-clients
           - pps-tools
           - chrony
+          - mosquitto
+          - mosquitto-clients
 
     - name: Device tree overlay
       ansible.builtin.blockinfile:
@@ -133,11 +139,6 @@
           USBAUTO="true"
           DEVICES="/dev/ttyAMA3 /dev/pps0"
           GPSD_OPTIONS="-n"
-      register: gps_config_updated
-
-    - name: Reboot machines
-      ansible.builtin.reboot:
-      when: gps_config_updated.changed
 
     - name: (Re)Start gpsd service
       ansible.builtin.systemd_service:
@@ -179,6 +180,21 @@
         state: started
         daemon_reload: true
 
+    - name: Update MQTT config
+      ansible.builtin.blockinfile:
+        path: /etc/mosquitto/mosquitto.conf
+        marker: "# {mark} M0WUT PNT Main Reference Specific"
+        block: |
+          listener 1883
+          allow_anonymous true
+
+    - name: (Re)Start Mosquitto service
+      ansible.builtin.systemd_service:
+        name: mosquitto
+        state: started
+        daemon_reload: true
+
+# All machines user setup
 - hosts: "*"
   tasks:
     - name: Clone repo
