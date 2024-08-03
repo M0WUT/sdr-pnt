@@ -20,7 +20,7 @@ def main():
     import time
 
     x = 0
-
+    print("Starting loop")
     while True:
         led_comms_red.write(x & 0x01)
         led_comms_green.write(x & 0x02)
