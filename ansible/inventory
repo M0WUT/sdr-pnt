@@ -1,0 +1,10 @@
+[main_references]
+sdr-pnt
+
+[aux_references]
+
+[main_references:vars]
+ansible_ssh_user=pi
+
+[aux_references:vars]
+ansible_ssh_user=pi
