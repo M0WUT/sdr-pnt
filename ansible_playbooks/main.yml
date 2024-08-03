@@ -1,0 +1,188 @@
+- hosts: "*"
+  become: yes
+  tasks:
+    - name: Update machines
+      ansible.builtin.apt:
+        update_cache: yes
+        upgrade: "yes"
+
+    - name: Install dependencies
+      ansible.builtin.apt:
+        pkg:
+          - i2c-tools
+          - git
+          - python3-pip
+
+    - name: Device tree overlay
+      ansible.builtin.blockinfile:
+        path: /boot/firmware/config.txt
+        marker: "# {mark} M0WUT PNT Generic"
+        block: |
+          dtparam=nvme
+          dtparam=pciex1_gen=2
+          dtparam=i2c_arm=on
+          dtoverlay=w1-gpio,gpiopin=24
+          dtoverlay=i2c1,pins_2_3
+          dtoverlay=i2c4,pins_6_7
+          enable_uart=1
+          dtoverlay=disable-bt
+          dtoverlay=uart3
+          dtoverlay=uart5
+
+      register: dt_updated
+
+    - name: Reboot machines
+      ansible.builtin.reboot:
+      when: dt_updated.changed
+
+    - name: Load kernel modules
+      ansible.builtin.blockinfile:
+        path: /etc/modules
+        marker: "# {mark} M0WUT PNT Generic"
+        block: |
+          w1_ds2431
+      register: modules_updated
+
+    - name: Reboot machines
+      ansible.builtin.reboot:
+      when: modules_updated.changed
+
+    - name: Check if EEPROM is found
+      ansible.builtin.find:
+        paths: /sys/bus/w1/devices/
+        pattern:
+          - "eeprom"
+        follow: yes
+        recurse: yes
+        depth: 2
+      register: w1_devices
+      failed_when: w1_devices.matched != 1
+
+    - name: Read address EEPROM
+      ansible.builtin.shell: "cat {{ w1_devices.files[0].path }}"
+      register: eeprom_contents
+      changed_when: False
+    - name: Check address EEPROM
+      ansible.builtin.assert:
+        that: "'LID' in eeprom_contents.stdout_lines[0]"
+        quiet: true
+        fail_msg: |
+          "Address EEPROM on baseboard is not configured correctly. Contents should be ASCII LID followed by card address as a raw byte"
+
+    - name: Setup mount point for NVME SSD
+      ansible.builtin.file:
+        path: /mnt/media/nvme
+        state: directory
+        mode: "775"
+
+    - name: Check if NVME SSD is plugged in
+      ansible.builtin.stat:
+        path: /dev/nvme0n1p1
+      register: ssd_found
+
+    - name: Mount SSD (if found)
+      ansible.posix.mount:
+        path: /mnt/media/nvme
+        src: /dev/nvme0n1p1
+        fstype: ext4
+        state: mounted
+      when: ssd_found.stat.exists
+
+- hosts: "main_references"
+  become: yes
+  tasks:
+    - name: Install dependencies
+      ansible.builtin.apt:
+        pkg:
+          - gpsd
+          - gpsd-clients
+          - pps-tools
+          - chrony
+
+    - name: Device tree overlay
+      ansible.builtin.blockinfile:
+        path: /boot/firmware/config.txt
+        marker: "# {mark} M0WUT PNT Main Reference Specific"
+        block: |
+          dtoverlay=pps-gpio,gpiopin=18
+
+      register: dt_updated
+
+    - name: Reboot machines
+      ansible.builtin.reboot:
+      when: dt_updated.changed
+
+    - name: Load kernel modules
+      ansible.builtin.blockinfile:
+        path: /etc/modules
+        marker: "# {mark} M0WUT PNT Main Reference Specific"
+        block: |
+          pps-gpio
+      register: modules_updated
+
+    - name: Reboot machines
+      ansible.builtin.reboot:
+      when: modules_updated.changed
+
+    - name: Setup GPS config
+      ansible.builtin.blockinfile:
+        path: /etc/default/gpsd
+        marker: "# {mark} M0WUT PNT Main Reference Specific"
+        block: |
+          START_DAEMON="true"
+          USBAUTO="true"
+          DEVICES="/dev/ttyAMA3 /dev/pps0"
+          GPSD_OPTIONS="-n"
+      register: gps_config_updated
+
+    - name: Reboot machines
+      ansible.builtin.reboot:
+      when: gps_config_updated.changed
+
+    - name: (Re)Start gpsd service
+      ansible.builtin.systemd_service:
+        name: gpsd
+        state: started
+        daemon_reload: true
+
+    - name: Update chrony config
+      ansible.builtin.blockinfile:
+        path: /etc/chrony/chrony.conf
+        marker: "# {mark} M0WUT PNT Main Reference Specific"
+        block: |
+          refclock SHM 0 refid NMEA offset 0.000 precision 1e-3 poll 3 noselect
+          refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 prefer
+          allow 0.0.0.0/0
+          local stratum 1
+
+    - name: Remove default NTP pools
+      ansible.builtin.lineinfile:
+        path: /etc/chrony/chrony.conf
+        state: absent
+        regexp: "^pool "
+
+    - name: Remove default NTP servers
+      ansible.builtin.lineinfile:
+        path: /etc/chrony/chrony.conf
+        state: absent
+        regexp: "^server "
+
+    - name: Remove limit on maximum update step
+      ansible.builtin.lineinfile:
+        path: /etc/chrony/chrony.conf
+        state: absent
+        regexp: "maxupdateskew"
+
+    - name: (Re)Start chrony service
+      ansible.builtin.systemd_service:
+        name: chrony
+        state: started
+        daemon_reload: true
+
+- hosts: "*"
+  tasks:
+    - name: Clone repo
+      ansible.builtin.git:
+        repo: https://github.com/M0WUT/sdr-pnt.git
+        dest: /home/pi/pnt
+        recursive: true
