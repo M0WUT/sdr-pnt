@@ -3,7 +3,7 @@
     "disable_existing_loggers": true,
     "formatters": {
         "simple": {
-            "format": "%(levelname)s\t[%(module)s]\t%(asctime)s: %(message)s",
+            "format": "%(levelname)s\t[%(name)s]\t%(asctime)s: %(message)s",
             "datefmt": "%Y-%m-%dT%H:%M:%S%z"
         }
     },

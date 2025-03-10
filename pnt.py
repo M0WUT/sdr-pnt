@@ -20,7 +20,6 @@ class TimingReference:
         logger: logging.Logger,
         is_master: bool = True,
     ):
-        self.is_master = is_master
         self.logger = logger
         # LEDs
         self.led_comms_red = RPiGPIO(config.COMMS_RED, GPIO.OUTPUT, GPIO.LOW)
@@ -35,8 +34,10 @@ class TimingReference:
         self.eeprom = DS2431()
 
         # GPS Monitor
-        if self.is_master:
+        if is_master:
             self.gps_monitor = GPSMonitor()
+        else:
+            self.gps_monitor = None
 
         # RS485 Traffic Handler
         self.card_address = self.eeprom.read_card_address()
@@ -51,24 +52,22 @@ class TimingReference:
         the source is the GPS receiver, is this is an auxiliary reference
         this is a NTP sync with a master reference
         """
-        time_synced = False
-        while time_synced is False:
-            if self.is_master:
 
-                if self.gps_monitor.get_fix_status() in [
-                    GPSFixStatus.FIX_2D,
-                    GPSFixStatus.FIX_3D,
-                ]:
-                    time_synced = True
-            else:
-                # @TODO force NTP sync to master node
-                raise NotImplementedError
-            self.led_status_red.toggle()
-            time.sleep(0.5)
+        if self.gps_monitor:
+            while self.gps_monitor.get_fix_status() not in [
+                GPSFixStatus.FIX_2D,
+                GPSFixStatus.FIX_3D,
+            ]:
+                self.led_status_red.toggle()
+                time.sleep(0.5)
+        else:
+            # @TODO NTP sync to master node
+            raise NotImplementedError
 
 
 def main(is_master: bool = True):
     git_helper = GitHelper(pathlib.Path())
+
     # Setup logging
     config_file = pathlib.Path("logging_config.json")
     with open(config_file) as config_in:
@@ -76,19 +75,25 @@ def main(is_master: bool = True):
     logging.config.dictConfig(config)
     logger = logging.getLogger("reference")
     logger.info(f"Software Version: {git_helper.get_git_version()}")
+
+    # Wait for time synchronisation
     reference = TimingReference(logger=logger, is_master=is_master)
     logger.info("Waiting for time synchronisation")
     reference.wait_for_valid_timesync()
     logger.info("Time synchronised. Starting main application!")
+    reference.led_status_red.write(0)
+    reference.led_status_green.write(1)
+
+    # Here we go!
 
     x = 0
     while True:
-        reference.led_comms_red.write(x & 0x01)
-        reference.led_comms_green.write(x & 0x02)
-        reference.led_status_red.write(x & 0x04)
-        reference.led_status_green.write(x & 0x08)
+        # reference.led_comms_red.write(x & 0x01)
+        # reference.led_comms_green.write(x & 0x02)
+        # reference.led_status_red.write(x & 0x04)
+        # reference.led_status_green.write(x & 0x08)
         x += 1
-        time.sleep(0.1)
+        time.sleep(0.5)
 
 
 if __name__ == "__main__":
