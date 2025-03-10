@@ -42,6 +42,7 @@
         path: /etc/modules
         marker: "# {mark} M0WUT PNT Generic"
         block: |
+          i2c-dev
           w1_ds2431
       register: modules_updated
 
@@ -89,7 +90,6 @@
         fstype: ext4
         state: mounted
       when: ssd_found.stat.exists
-
 
 # Main Reference sudo setup
 - hosts: "main_references"
