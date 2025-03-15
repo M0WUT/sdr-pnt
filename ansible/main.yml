@@ -146,6 +146,12 @@
         state: started
         daemon_reload: true
 
+    - name: Remove limit on timewarp (as likely not synced on startup)
+      ansible.builtin.lineinfile:
+        path: /etc/chrony/chrony.conf
+        state: absent
+        regexp: "maxupdateskew"
+
     - name: Update chrony config
       ansible.builtin.blockinfile:
         path: /etc/chrony/chrony.conf
@@ -155,6 +161,7 @@
           refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 prefer
           allow 0.0.0.0/0
           local stratum 1
+          makeskew 60 -1
 
     - name: Remove default NTP pools
       ansible.builtin.lineinfile:
