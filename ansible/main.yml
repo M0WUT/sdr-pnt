@@ -146,11 +146,11 @@
         state: started
         daemon_reload: true
 
-    - name: Remove limit on timewarp (as likely not synced on startup)
+    - name: Allow jump in time for any error greater than 60s (rather than skew)
       ansible.builtin.lineinfile:
         path: /etc/chrony/chrony.conf
         state: absent
-        regexp: "maxupdateskew"
+        regexp: "makeskew"
 
     - name: Update chrony config
       ansible.builtin.blockinfile:
