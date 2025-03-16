@@ -150,7 +150,7 @@
       ansible.builtin.lineinfile:
         path: /etc/chrony/chrony.conf
         state: absent
-        regexp: "makeskew"
+        regexp: "makestep"
 
     - name: Update chrony config
       ansible.builtin.blockinfile:
@@ -161,7 +161,7 @@
           refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 prefer
           allow 0.0.0.0/0
           local stratum 1
-          makeskew 60 -1
+          makestep 60 -1
 
     - name: Remove default NTP pools
       ansible.builtin.lineinfile:
