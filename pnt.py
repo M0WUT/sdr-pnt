@@ -16,6 +16,7 @@ from m0wut_drivers.gps_monitor import GPSMonitor, GPSInfo, GPSFixStatus
 from m0wut_drivers.git_helper import GitHelper
 import config
 from sfp.primary import SFPPrimary
+from mqtt.mqtt_handler import MqttHandler
 
 
 class TimingReference:
@@ -84,16 +85,19 @@ def main(is_master: bool = True):
     logger = logging.getLogger("reference")
     logger.info(f"Software Version: {git_helper.get_git_version()}")
 
-    with SFPPrimary(
-        i2c_bus=config.I2C_SFP_BUS,
-        i2c_addr=config.I2C_SFP_ADDRESS,
-        gpio_presetn=config.GPIO_SFP_PRESETN,
-        gpio_tx_enable=config.GPIO_SFP_TX_ENABLE,
-        gpio_tx_fault=config.GPIO_SFP_TX_FAULT,
-        gpio_los=config.GPIO_SFP_LOS,
-    ) as x:
+    # with SFPPrimary(
+    #     i2c_bus=config.I2C_SFP_BUS,
+    #     i2c_addr=config.I2C_SFP_ADDRESS,
+    #     gpio_presetn=config.GPIO_SFP_PRESETN,
+    #     gpio_tx_enable=config.GPIO_SFP_TX_ENABLE,
+    #     gpio_tx_fault=config.GPIO_SFP_TX_FAULT,
+    #     gpio_los=config.GPIO_SFP_LOS,
+    # ) as sfp,
+    with MqttHandler(
+        config.MQTT_BROKER_IP_ADDRESS, config.MQTT_BROKER_PORT, config.NODE_NAME
+    ) as mqtt:
         while True:
-            x.tick()
+            mqtt.tick()
             time.sleep(0.1)
 
     # # Wait for time synchronisation

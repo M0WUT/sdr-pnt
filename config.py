@@ -7,11 +7,19 @@ import smbus2
 # Local imports
 from m0wut_drivers.gpio import GPIO, RPiGPIO
 
+
+# Node Name
+NODE_NAME = "Timing Reference - Primary"
+
+# MQTT Config
+MQTT_BROKER_IP_ADDRESS = "127.0.0.1"
+MQTT_BROKER_PORT = 1883
+
 # RS485 UART
 UART_RS485 = Path("/") / "dev" / "ttyAMA5"
 GPIO_RS485_TRX = RPiGPIO(23, GPIO.OUTPUT)
 
-# # LEDS
+# LEDS
 GPIO_COMMS_RED = 9
 GPIO_STATUS_RED = 10
 GPIO_STATUS_GREEN = 11
