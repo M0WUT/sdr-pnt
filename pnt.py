@@ -1,17 +1,20 @@
-from m0wut_drivers.ds2431 import DS2431
-from m0wut_drivers.rs485_message_handler import MessageHandler
-
-from m0wut_drivers.gpio import RPiGPIO, GPIO
-
-from m0wut_drivers.gps_monitor import GPSMonitor, GPSInfo, GPSFixStatus
-from m0wut_drivers.git_helper import GitHelper
-
-import config
+# Local imports
 import time
 import logging.config
 from typing import Optional
 import pathlib
 import json
+
+# Third-party imports
+import smbus2
+
+# Local imports
+from m0wut_drivers.ds2431 import DS2431
+from m0wut_drivers.rs485_message_handler import MessageHandler
+from m0wut_drivers.gpio import RPiGPIO, GPIO
+from m0wut_drivers.gps_monitor import GPSMonitor, GPSInfo, GPSFixStatus
+from m0wut_drivers.git_helper import GitHelper
+import config
 from sfp.primary import SFPPrimary
 
 
@@ -71,6 +74,7 @@ class TimingReference:
 
 
 def main(is_master: bool = True):
+    pass
     git_helper = GitHelper(pathlib.Path())
 
     # Setup logging

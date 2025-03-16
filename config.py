@@ -8,10 +8,10 @@ import smbus2
 from m0wut_drivers.gpio import GPIO, RPiGPIO
 
 # RS485 UART
-UART_RS485 = Path("/dev") / "ttyAMA0"
-GPIO_RS485_TRX = RPiGPIO(7, GPIO.OUTPUT)
+UART_RS485 = Path("/") / "dev" / "ttyAMA5"
+GPIO_RS485_TRX = RPiGPIO(23, GPIO.OUTPUT)
 
-# LEDS
+# # LEDS
 GPIO_COMMS_RED = 9
 GPIO_STATUS_RED = 10
 GPIO_STATUS_GREEN = 11
