@@ -70,7 +70,7 @@ def main(is_master: bool = True):
     with open(config_file) as config_in:
         logging.config.dictConfig(json.load(config_in))
     logger = logging.getLogger(__name__)
-    logger.error(f"Software Version: {git_helper.get_git_version()}")
+    logger.info(f"Software Version: {git_helper.get_git_version()}")
 
     # There's a nice function "getHandlerByName" but it's Python 3.12 only :(
     warning_handler = [
@@ -89,6 +89,7 @@ def main(is_master: bool = True):
         while True:
             sfp.tick()
             warning_handler.tick()
+            mqtt.tick()
             time.sleep(0.1)
 
     # # Wait for time synchronisation

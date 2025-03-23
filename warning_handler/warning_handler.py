@@ -5,6 +5,8 @@ from dataclasses import dataclass
 import json
 from logging import Handler, LogRecord, ERROR, WARNING
 from queue import Queue
+import logging
+from time import sleep
 
 # Third-party imports
 
@@ -18,7 +20,7 @@ from config import (
     MQTT_BROKER_PORT,
     NODE_NAME,
 )
-from mqtt.mqtt_handler import MqttHandler
+from mqtt.mqtt_handler import MqttHandler, BrokerConnectionError
 
 
 @dataclass(frozen=True)
@@ -61,10 +63,6 @@ class WarningHandler(Handler):
     ):
         super().__init__()
         self.node_name = NODE_NAME
-        self.mqtt = MqttHandler(
-            MQTT_BROKER_IP_ADDRESS, MQTT_BROKER_PORT, NODE_NAME
-        )
-        self.publish = None
         self.warnings: list[Warning] = []
         self.errors: list[Error] = []
         self.green_led = green_led
@@ -72,6 +70,20 @@ class WarningHandler(Handler):
         self.last_blink_time: datetime = datetime.now()
         self.blink_period_s = blink_period_s
         self.led_state: bool = False
+        self.mqtt = None
+        self.logger = logging.getLogger(__name__)
+        while self.mqtt is None:
+            try:
+                self.mqtt = MqttHandler(
+                    MQTT_BROKER_IP_ADDRESS, MQTT_BROKER_PORT, NODE_NAME
+                )
+            except BrokerConnectionError:
+                self.red_led.write(1)
+                self.logger.error(
+                    f"Failed to connect to broker at {MQTT_BROKER_IP_ADDRESS}:{MQTT_BROKER_PORT}",
+                )
+                sleep(5)
+        self.red_led.write(0)
 
     def add_info(
         self,
@@ -82,7 +94,7 @@ class WarningHandler(Handler):
     ):
         x = Info(node_name, category, message)
         # Don't bother logging info - just useful for debug
-        if broadcast:
+        if broadcast and self.mqtt is not None:
             self.mqtt.publish("/discovery/info", str(x))
 
     def emit(self, record: LogRecord):
@@ -102,7 +114,7 @@ class WarningHandler(Handler):
     ):
         x = Warning(node_name, category, message)
         self.warnings.append(x)
-        if broadcast:
+        if broadcast and self.mqtt is not None:
             self.mqtt.publish("/discovery/warnings", str(x))
 
     def add_error(
@@ -114,7 +126,7 @@ class WarningHandler(Handler):
     ):
         x = Error(node_name, category, message)
         self.errors.append(x)
-        if broadcast:
+        if broadcast and self.mqtt is not None:
             self.mqtt.publish("/discovery/errors", str(x))
 
     def _clear_warnings(self):

@@ -41,7 +41,7 @@
             "mode": "a+",
             "level": "WARNING",
             "formatter": "json",
-            "filename": "log/warning_log.log",
+            "filename": "log/warning_log.jsonl",
             "maxBytes": 100000000,
             "backupCount": 3
         },
