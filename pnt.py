@@ -1,9 +1,11 @@
 # Local imports
+import logging.handlers
 import time
 import logging.config
 from typing import Optional
 import pathlib
 import json
+import atexit
 
 # Third-party imports
 import smbus2
@@ -17,6 +19,7 @@ from m0wut_drivers.git_helper import GitHelper
 import config
 from sfp.primary import SFPPrimary
 from mqtt.mqtt_handler import MqttHandler
+from warning_handler.warning_handler import WarningHandler
 
 
 class TimingReference:
@@ -26,19 +29,6 @@ class TimingReference:
         is_master: bool = True,
     ):
         self.logger = logger
-        # LEDs
-        self.led_comms_red = RPiGPIO(
-            config.GPIO_COMMS_RED, GPIO.OUTPUT, GPIO.LOW
-        )
-        self.led_comms_green = RPiGPIO(
-            config.GPIO_COMMS_GREEN, GPIO.OUTPUT, GPIO.LOW
-        )
-        self.led_status_red = RPiGPIO(
-            config.GPIO_STATUS_RED, GPIO.OUTPUT, GPIO.LOW
-        )
-        self.led_status_green = RPiGPIO(
-            config.GPIO_STATUS_GREEN, GPIO.OUTPUT, GPIO.LOW
-        )
         # EEPROM
         self.eeprom = DS2431()
 
@@ -67,7 +57,7 @@ class TimingReference:
                 GPSFixStatus.FIX_2D,
                 GPSFixStatus.FIX_3D,
             ]:
-                self.led_status_red.toggle()
+                # self.led_status_red.toggle()
                 time.sleep(0.5)
         else:
             # @TODO NTP sync to master node
@@ -82,22 +72,26 @@ def main(is_master: bool = True):
     config_file = pathlib.Path("logging_config.json")
     with open(config_file) as config_in:
         logging.config.dictConfig(json.load(config_in))
-    logger = logging.getLogger("reference")
+    logger = logging.getLogger(__name__)
     logger.info(f"Software Version: {git_helper.get_git_version()}")
 
-    # with SFPPrimary(
-    #     i2c_bus=config.I2C_SFP_BUS,
-    #     i2c_addr=config.I2C_SFP_ADDRESS,
-    #     gpio_presetn=config.GPIO_SFP_PRESETN,
-    #     gpio_tx_enable=config.GPIO_SFP_TX_ENABLE,
-    #     gpio_tx_fault=config.GPIO_SFP_TX_FAULT,
-    #     gpio_los=config.GPIO_SFP_LOS,
-    # ) as sfp,
-    with MqttHandler(
-        config.MQTT_BROKER_IP_ADDRESS, config.MQTT_BROKER_PORT, config.NODE_NAME
-    ) as mqtt:
+    # There's a nice function "getHandlerByName" but it's Python 3.12 only :(
+    warning_handler = [
+        x for x in logging.getLogger().handlers if isinstance(x, WarningHandler)
+    ][0]
+    mqtt = warning_handler.mqtt
+
+    with SFPPrimary(
+        i2c_bus=config.I2C_SFP_BUS,
+        i2c_addr=config.I2C_SFP_ADDRESS,
+        gpio_present=config.GPIO_SFP_PRESENT,
+        gpio_tx_enable=config.GPIO_SFP_TX_ENABLE,
+        gpio_tx_fault=config.GPIO_SFP_TX_FAULT,
+        gpio_los=config.GPIO_SFP_LOS,
+    ) as sfp:
         while True:
-            mqtt.tick()
+            sfp.tick()
+            warning_handler.tick()
             time.sleep(0.1)
 
     # # Wait for time synchronisation

@@ -24,20 +24,18 @@ class SFPPrimary(SFP):
         self,
         i2c_bus: smbus2.SMBus,
         i2c_addr: int,
-        gpio_presetn: GPIO,
+        gpio_present: GPIO,
         gpio_tx_enable: GPIO,
         gpio_tx_fault: GPIO,
         gpio_los: GPIO,
-        logger: Optional[logging.Logger] = None,
     ):
         super().__init__(
             i2c_bus=i2c_bus,
             i2c_addr=i2c_addr,
-            gpio_presetn=gpio_presetn,
+            gpio_present=gpio_present,
             gpio_tx_enable=gpio_tx_enable,
             gpio_tx_fault=gpio_tx_fault,
             gpio_los=gpio_los,
-            logger=logger,
         )
 
         self.state = self.FSMState.DISCONNECTED

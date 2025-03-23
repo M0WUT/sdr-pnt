@@ -2,23 +2,61 @@
     "version": 1,
     "disable_existing_loggers": true,
     "formatters": {
-        "simple": {
+        "standard": {
             "format": "%(levelname)s\t[%(name)s]\t%(asctime)s: %(message)s",
             "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+        },
+        "json": {
+            "()": "logger.json_formatter.JSONFormatter",
+            "fmt_keys": {
+                "level": "levelname",
+                "message": "message",
+                "timestamp": "timestamp",
+                "logger": "name",
+                "module": "module",
+                "function": "funcName",
+                "line": "lineno"
+            }
         }
     },
     "handlers": {
         "stdout": {
             "class": "logging.StreamHandler",
-            "formatter": "simple",
+            "level": "DEBUG",
+            "formatter": "standard",
             "stream": "ext://sys.stdout"
+        },
+        "full_log": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "mode": "a+",
+            "level": "INFO",
+            "formatter": "json",
+            "filename": "log/full_log.jsonl",
+            "maxBytes": 100000000,
+            "backupCount": 3
+        },
+        "warning_log": {
+            "class": "logging.handlers.RotatingFileHandler",
+            "mode": "a+",
+            "level": "WARNING",
+            "formatter": "json",
+            "filename": "log/warning_log.log",
+            "maxBytes": 100000000,
+            "backupCount": 3
+        },
+        "warning_handler": {
+            "class": "warning_handler.warning_handler.WarningHandler",
+            "level": "DEBUG"
         }
     },
     "loggers": {
         "root": {
             "level": "DEBUG",
             "handlers": [
-                "stdout"
+                "stdout",
+                "full_log",
+                "warning_log",
+                "warning_handler"
             ]
         }
     }
