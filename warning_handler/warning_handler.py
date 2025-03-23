@@ -130,6 +130,7 @@ class WarningHandler(Handler):
         ).total_seconds() > 0.5 * self.blink_period_s:
             # Toggle virtual LED
             self.led_state = not self.led_state
+            self.last_blink_time = x
             # LED configuration is a combined Red / Green (i.e. can be combined to make orange)
             if self.errors:
                 # Blink red

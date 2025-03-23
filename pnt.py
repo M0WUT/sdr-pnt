@@ -2,23 +2,20 @@
 import logging.handlers
 import time
 import logging.config
-from typing import Optional
 import pathlib
 import json
-import atexit
+
 
 # Third-party imports
-import smbus2
+
 
 # Local imports
 from m0wut_drivers.ds2431 import DS2431
 from m0wut_drivers.rs485_message_handler import MessageHandler
-from m0wut_drivers.gpio import RPiGPIO, GPIO
-from m0wut_drivers.gps_monitor import GPSMonitor, GPSInfo, GPSFixStatus
+from m0wut_drivers.gps_monitor import GPSMonitor, GPSFixStatus
 from m0wut_drivers.git_helper import GitHelper
 import config
 from sfp.primary import SFPPrimary
-from mqtt.mqtt_handler import MqttHandler
 from warning_handler.warning_handler import WarningHandler
 
 
@@ -73,7 +70,7 @@ def main(is_master: bool = True):
     with open(config_file) as config_in:
         logging.config.dictConfig(json.load(config_in))
     logger = logging.getLogger(__name__)
-    logger.info(f"Software Version: {git_helper.get_git_version()}")
+    logger.error(f"Software Version: {git_helper.get_git_version()}")
 
     # There's a nice function "getHandlerByName" but it's Python 3.12 only :(
     warning_handler = [

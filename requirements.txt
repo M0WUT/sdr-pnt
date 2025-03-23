@@ -1,2 +1,4 @@
 GitPython
 paho-mqtt
+flake8
+coloredlogs

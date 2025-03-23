@@ -1,6 +1,4 @@
 # Standard library imports
-from typing import Optional
-import logging
 from enum import Enum, auto
 
 # Third-party library imports

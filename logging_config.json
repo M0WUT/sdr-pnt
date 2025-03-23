@@ -2,7 +2,8 @@
     "version": 1,
     "disable_existing_loggers": true,
     "formatters": {
-        "standard": {
+        "stdout_colour": {
+            "()": "coloredlogs.ColoredFormatter",
             "format": "%(levelname)s\t[%(name)s]\t%(asctime)s: %(message)s",
             "datefmt": "%Y-%m-%dT%H:%M:%S%z"
         },
@@ -23,7 +24,7 @@
         "stdout": {
             "class": "logging.StreamHandler",
             "level": "DEBUG",
-            "formatter": "standard",
+            "formatter": "stdout_colour",
             "stream": "ext://sys.stdout"
         },
         "full_log": {
