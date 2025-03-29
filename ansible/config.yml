@@ -1,0 +1,2 @@
+gpsd_devices: "/dev/ttyAMA3 /dev/pps0"
+gpsd_options: "-n"
