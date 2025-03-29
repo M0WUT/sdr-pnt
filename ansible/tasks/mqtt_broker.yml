@@ -1,0 +1,13 @@
+- name: Update MQTT config
+  ansible.builtin.blockinfile:
+    path: /etc/mosquitto/mosquitto.conf
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      listener 1883
+      allow_anonymous true
+
+- name: (Re)Start Mosquitto service
+  ansible.builtin.systemd_service:
+    name: mosquitto
+    state: started
+    daemon_reload: true

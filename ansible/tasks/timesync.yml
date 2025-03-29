@@ -1,0 +1,101 @@
+- name: Install dependencies
+  ansible.builtin.apt:
+    pkg:
+      - gpsd
+      - gpsd-clients
+      - pps-tools
+      - chrony
+      - mosquitto
+      - mosquitto-clients
+
+- name: Device tree overlay
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      dtoverlay=pps-gpio,gpiopin=18
+
+  register: dt_updated
+
+- name: Reboot machines
+  ansible.builtin.reboot:
+  when: dt_updated.changed
+
+- name: Load kernel modules
+  ansible.builtin.blockinfile:
+    path: /etc/modules
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      pps-gpio
+  register: modules_updated
+
+- name: Reboot machines
+  ansible.builtin.reboot:
+  when: modules_updated.changed
+
+- name: Change gpsd options
+  ansible.builtin.lineinfile:
+    dest: /etc/default/gpsd
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - regexp: '^DEVICES='
+      line: 'DEVICES="{{ gpsd_devices }}"'
+    - regexp: '^GPSD_OPTIONS='
+      line: 'GPSD_OPTIONS="{{ gpsd_options }}"'
+
+- name: Autostart gpsd
+  ansible.builtin.blockinfile:
+    path: /etc/default/gpsd
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      START_DAEMON="true"
+      USBAUTO="true"
+
+- name: (Re)Start gpsd service
+  ansible.builtin.systemd_service:
+    name: gpsd
+    state: started
+    daemon_reload: true
+
+- name: Allow jump in time for any error greater than 60s (rather than skew)
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "makestep"
+
+- name: Update chrony config
+  ansible.builtin.blockinfile:
+    path: /etc/chrony/chrony.conf
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      refclock SHM 0 refid NMEA offset 0.000 precision 1e-3 poll 0 filter 3
+      refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 trust
+      allow 0.0.0.0/0
+      local stratum 1
+      makestep 60 -1
+
+- name: Remove default NTP pools
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "^pool "
+
+- name: Remove default NTP servers
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "^server "
+
+- name: Remove limit on maximum update step
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "maxupdateskew"
+
+- name: (Re)Start chrony service
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: started
+    daemon_reload: true
