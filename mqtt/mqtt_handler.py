@@ -89,7 +89,7 @@ class MqttHandler:
         self, client, userdata, disconnect_flags, reason_code, properties
     ) -> None:
         self.mqtt_connected = False
-        self.logger.error("Disconnected from MQTT server")
+        self.logger.warning("Disconnected from MQTT server")
 
     def on_message(self, client, userdata, msg: mqtt.MQTTMessage) -> None:
         # This is called in a seperate thread so put message on queue

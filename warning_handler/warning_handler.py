@@ -201,7 +201,7 @@ class WarningHandler(Handler):
             self.led_state = not self.led_state
             self.last_blink_time = x
             # LED configuration is a combined Red / Green (i.e. can be combined to make orange)
-            if self._has_errors():
+            if self._has_errors() or not self.mqtt.mqtt_connected:
                 # Blink red
                 self.green_led.write(0)
                 self.red_led.write(self.led_state)

@@ -157,8 +157,8 @@
         path: /etc/chrony/chrony.conf
         marker: "# {mark} M0WUT PNT Main Reference Specific"
         block: |
-          refclock SHM 0 refid NMEA offset 0.000 precision 1e-3 poll 3 noselect
-          refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 prefer
+          refclock SHM 0 refid NMEA offset 0.000 precision 1e-3 poll 0 filter 3
+          refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 trust
           allow 0.0.0.0/0
           local stratum 1
           makestep 60 -1
