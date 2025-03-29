@@ -33,19 +33,23 @@ class MqttHandler:
         self.client.on_message = self.on_message
         self.broker_ip_address = broker_ip_address
         self.broker_port = broker_port
-        self.name = node_name
+        self.node_name = node_name
         self.callbacks = {}
         self.message_queue = Queue()
-        self.logger: Optional[logging.Logger] = None
+        self.logger: logging.Logger = logging.getLogger(__name__)
         self.mqtt_connected: bool = False
 
         try:
-            x = {
-                "mac_address": get_mac_address(),
-                "name": f"{self.name}",
-                "status": "disconnected",
-            }
-            self.client.will_set("/status/discovery", json.dumps(x))
+            self.client.will_set(
+                "/status/discovery",
+                json.dumps(
+                    {
+                        "mac_address": get_mac_address(),
+                        "node_name": f"{self.node_name}",
+                        "status": "disconnected",
+                    }
+                ),
+            )
             self.client.connect(
                 self.broker_ip_address, self.broker_port, keepalive=5
             )
@@ -55,8 +59,6 @@ class MqttHandler:
             raise BrokerConnectionError
 
     def tick(self) -> None:
-        if self.logger is None:
-            self.logger = logging.getLogger(__name__)
         # This deliberately only deals with one thing at a time
         # Prevents locking up everything else if swamped with messages
         if not self.message_queue.empty():
@@ -71,12 +73,15 @@ class MqttHandler:
                 json.dumps(
                     {
                         "mac_address": get_mac_address(),
-                        "name": self.name,
+                        "node_name": self.node_name,
                         "status": "connected",
                     }
                 ),
             )
             self.mqtt_connected = True
+            self.logger.info(
+                f"Connected to MQTT broker at {self.broker_ip_address}:{self.broker_port}"
+            )
         else:
             raise BrokerConnectionError(reason_code)
 
@@ -86,28 +91,24 @@ class MqttHandler:
         self.mqtt_connected = False
         self.logger.error("Disconnected from MQTT server")
 
-    def on_message(self, client, userdata, msg) -> None:
+    def on_message(self, client, userdata, msg: mqtt.MQTTMessage) -> None:
         # This is called in a seperate thread so put message on queue
-        # and let message handler deal with it
+        # and let message_handler deal with it
         self.message_queue.put(msg)
 
     def message_handler(self, msg: mqtt.MQTTMessage) -> None:
-        if self.logger is None:
-            self.logger = logging.getLogger(__name__)
         if msg.topic in self.callbacks.keys():
             message = msg.payload.decode("utf-8")
             self.logger.debug(f"Received MQTT: [{msg.topic}] {message}")
             try:
                 source_node_id = "Unknown device"
                 res = json.loads(message)
-                if "name" in res.keys():
-                    source_node_id = res["name"]
+                if "node_name" in res.keys():
+                    source_node_id = res["node_name"]
                 self.callbacks[msg.topic].func(res)
 
             except UnicodeDecodeError:
-                self.logger.warning(
-                    source_node_id, __name__, "Malformed message received"
-                )
+                self.logger.warning("Malformed message received")
 
             except JSONDecodeError:
                 self.logger.warning(
@@ -128,8 +129,6 @@ class MqttHandler:
             self.client.publish(topic, payload)
 
     def register_callback(self, topic: str, func: Callable) -> None:
-        if self.logger is None:
-            self.logger = logging.getLogger(__name__)
         assert (
             topic not in self.callbacks.keys()
         ), f"Topic: {topic} already has a callback function registered"
@@ -141,14 +140,9 @@ class MqttHandler:
 
         else:
             self.callbacks[topic] = func
-
-            self.logger.info(
-                self.name, __name__, f"Subscribed to MQTT topic: {topic}"
-            )
+            self.logger.info(f"Subscribed to MQTT topic: {topic}")
 
     def remove_callback(self, topic: str) -> None:
-        if self.logger is None:
-            self.logger = logging.getLogger(__name__)
         assert topic in self.callbacks.keys(), (
             f"Attempted to remove topic ({topic}) that's not "
             "currently subscribed to"
@@ -160,16 +154,12 @@ class MqttHandler:
 
         else:
             self.callbacks.pop(topic)
-            self.logger.info(
-                self.name, __name__, f"Unsubscribed from MQTT topic: {topic}"
-            )
+            self.logger.info(f"Unsubscribed from MQTT topic: {topic}")
 
     def __enter__(self):
         return self
 
     def __exit__(self, *args, **kwargs):
-        if self.logger is None:
-            self.logger = logging.getLogger(__name__)
         self.client.loop_stop()
         # Don't clean disconnect so LWT gets broadcast
         # self.client.disconnect()

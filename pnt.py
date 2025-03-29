@@ -76,6 +76,8 @@ def main(is_master: bool = True):
     warning_handler = [
         x for x in logging.getLogger().handlers if isinstance(x, WarningHandler)
     ][0]
+    # Call warning handler tick function for first time to finish initialisation
+    warning_handler.tick()
     mqtt = warning_handler.mqtt
 
     with SFPPrimary(
