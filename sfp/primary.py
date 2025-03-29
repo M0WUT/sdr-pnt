@@ -53,13 +53,13 @@ class SFPPrimary(SFP):
 
     def in_disconnected_state(self):
         if self.dev.is_present():
-            self.logger.debug("SFP Inserted, attempting to read data")
+            self.logger.info("SFP Inserted, attempting to read data")
             self.state = self.FSMState.QUERYING_SFP
 
     def in_querying_sfp_state(self):
         sfp_info = self.dev.read_sfp_info()
         if sfp_info:
-            self.logger.info(f"Read SFP info: {sfp_info}")
+            self.logger.debug(f"Read SFP info: {sfp_info}")
             self.sfp_info = sfp_info
             self.dev.enable_tx()
             self.state = self.FSMState.ACTIVE

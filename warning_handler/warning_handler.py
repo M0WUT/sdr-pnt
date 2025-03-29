@@ -88,6 +88,9 @@ class WarningHandler(Handler):
                 self.mqtt = MqttHandler(
                     MQTT_BROKER_IP_ADDRESS, MQTT_BROKER_PORT, NODE_NAME
                 )
+                self.logger.debug("Waiting to connect to MQTT broker")
+                while not self.mqtt.mqtt_connected:
+                    sleep(0.1)
             except BrokerConnectionError:
                 self.red_led.write(1)
                 self.logger.error(

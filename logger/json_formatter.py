@@ -24,7 +24,7 @@ class JSONFormatter(logging.Formatter):
             "message": record.getMessage(),
             "timestamp": dt.datetime.fromtimestamp(
                 record.created, tz=dt.timezone.utc
-            ).isoformat(),
+            ).isoformat(timespec="milliseconds"),
         }
 
         if record.exc_info is not None:

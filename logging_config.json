@@ -4,8 +4,7 @@
     "formatters": {
         "stdout_colour": {
             "()": "coloredlogs.ColoredFormatter",
-            "format": "%(levelname)s\t[%(name)s]\t%(asctime)s: %(message)s",
-            "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+            "format": "%(levelname)s\t[%(name)s]\t%(asctime)s.%(msecs)03d: %(message)s"
         },
         "json": {
             "()": "logger.json_formatter.JSONFormatter",
@@ -28,7 +27,7 @@
             "stream": "ext://sys.stdout"
         },
         "full_log": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "()": "logger.conditional_path_file_handler.conditional_path_file_handler",
             "mode": "a+",
             "level": "INFO",
             "formatter": "json",
@@ -37,7 +36,7 @@
             "backupCount": 3
         },
         "warning_log": {
-            "class": "logging.handlers.RotatingFileHandler",
+            "()": "logger.conditional_path_file_handler.conditional_path_file_handler",
             "mode": "a+",
             "level": "WARNING",
             "formatter": "json",
