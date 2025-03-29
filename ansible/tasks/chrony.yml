@@ -1,0 +1,46 @@
+- name: Install dependencies
+  ansible.builtin.apt:
+    pkg:
+      - chrony
+
+- name: Allow jump in time for any error greater than 60s (rather than skew)
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "makestep"
+
+- name: Update chrony config
+  ansible.builtin.blockinfile:
+    path: /etc/chrony/chrony.conf
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      refclock SHM 0 refid NMEA offset 0.000 precision 1e-3 poll 0 filter 3
+      refclock PPS /dev/pps0 refid PPS lock NMEA poll 3 trust
+      allow 0.0.0.0/0
+      local stratum 1
+      makestep 15 -1
+
+- name: Remove default NTP pools
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "^pool "
+
+- name: Remove default NTP servers
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "^server "
+
+- name: Remove limit on maximum update step
+  ansible.builtin.lineinfile:
+    path: /etc/chrony/chrony.conf
+    state: absent
+    regexp: "maxupdateskew"
+
+- name: (Re)Start chrony service
+  ansible.builtin.systemd_service:
+    name: chrony
+    state: started
+    enabled: true
+    daemon_reload: true

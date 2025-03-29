@@ -2,14 +2,12 @@
 
 - name: Configure all devices
   hosts: "*"
-  become: yes
-
-  vars_files: ['config.yml']
+  become: true
 
   tasks:
     - name: Update machines
       ansible.builtin.apt:
-        update_cache: yes
+        update_cache: true
         upgrade: "yes"
 
     - name: Install dependencies
@@ -59,8 +57,8 @@
         paths: /sys/bus/w1/devices/
         pattern:
           - "eeprom"
-        follow: yes
-        recurse: yes
+        follow: true
+        recurse: true
         depth: 2
       register: w1_devices
       failed_when: w1_devices.matched != 1
@@ -68,7 +66,7 @@
     - name: Read address EEPROM
       ansible.builtin.shell: "cat {{ w1_devices.files[0].path }}"
       register: eeprom_contents
-      changed_when: False
+      changed_when: false
     - name: Check address EEPROM
       ansible.builtin.assert:
         that: "'LID' in eeprom_contents.stdout_lines[0]"
@@ -96,17 +94,23 @@
       when: ssd_found.stat.exists
 
 # Main Reference sudo setup
-- hosts: "main_references"
-  become: yes
+- name: Primary reference timing setup
+  hosts: "primary_references"
+  become: true
+  vars_files: ['config.yml']
   tasks:
-    - name: "Setup GPS configuration for primary reference"
-      ansible.builtin.include_tasks: tasks/timesync.yml
+    - name: "Setup gpsd configuration for primary reference"
+      ansible.builtin.include_tasks: tasks/gpsd.yml
+
+    - name: "Setup chrony configuration for primary reference"
+      ansible.builtin.include_tasks: tasks/chrony.yml
 
     - name: "Setup MQTT broker on primary reference"
       ansible.builtin.include_tasks: tasks/mqtt_broker.yml
 
 # All machines user setup
-- hosts: "*"
+- name: Application configuration
+  hosts: "*"
   tasks:
     - name: Clone repo
       ansible.builtin.git:

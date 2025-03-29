@@ -1,3 +1,9 @@
+- name: Install dependencies
+  ansible.builtin.apt:
+    pkg:
+      - mosquitto
+      - mosquitto-clients
+
 - name: Update MQTT config
   ansible.builtin.blockinfile:
     path: /etc/mosquitto/mosquitto.conf

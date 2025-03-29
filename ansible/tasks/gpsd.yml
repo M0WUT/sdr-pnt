@@ -1,0 +1,48 @@
+- name: Install dependencies
+  ansible.builtin.apt:
+    pkg:
+      - gpsd
+      - gpsd-clients
+      - pps-tools
+
+- name: Device tree overlay
+  ansible.builtin.blockinfile:
+    path: /boot/firmware/config.txt
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      dtoverlay=pps-gpio,gpiopin=18
+
+  register: dt_updated
+
+- name: Reboot machines
+  ansible.builtin.reboot:
+  when: dt_updated.changed
+
+- name: Load kernel modules
+  ansible.builtin.blockinfile:
+    path: /etc/modules
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      pps-gpio
+  register: modules_updated
+
+- name: Reboot machines
+  ansible.builtin.reboot:
+  when: modules_updated.changed
+
+- name: Configure gpsd
+  ansible.builtin.blockinfile:
+    path: /etc/default/gpsd
+    marker: "# {mark} M0WUT PNT Main Reference Specific"
+    block: |
+      START_DAEMON="true"
+      USBAUTO="true"
+      DEVICES="{{ gpsd_devices }}"
+      GPSD_OPTIONS="{{ gpsd_options }}"
+
+- name: (Re)Start gpsd service
+  ansible.builtin.systemd_service:
+    name: gpsd
+    enabled: true
+    state: started
+    daemon_reload: true
