@@ -13,6 +13,7 @@ from time import sleep
 
 # Local imports
 from m0wut_drivers.gpio import GPIO
+from m0wut_drivers.linux_cpu import get_mac_address
 from config import (
     GPIO_STATUS_GREEN,
     GPIO_STATUS_RED,
@@ -26,6 +27,7 @@ from paho.mqtt.client import MQTTMessage
 
 @dataclass(frozen=True)
 class Notification:
+    mac_address: str
     node_name: str
     category: str
     message: str
@@ -35,10 +37,11 @@ class Notification:
     def __str__(self) -> str:
         return json.dumps(
             {
+                "mac_address": self.mac_address,
                 "node_name": self.node_name,
                 "category": self.category,
                 "message": self.message,
-                "time": self.creation_time.strftime(self.datetime_strf_string),
+                "time": self.creation_time.isoformat(timespec="milliseconds"),
             }
         )
 
@@ -64,6 +67,7 @@ class WarningHandler(Handler):
     ):
         super().__init__()
         self.node_name = NODE_NAME
+        self.mac_address = get_mac_address()
         self.warnings: list[Warning] = []
         self.errors: list[Error] = []
         self.green_led = green_led
@@ -108,14 +112,15 @@ class WarningHandler(Handler):
 
     def add_info(
         self,
+        mac_address: str,
         node_name: str,
         category: str,
         message: str,
         broadcast: bool = True,
     ):
-        x = Info(node_name, category, message)
-        # Don't bother logging info - just useful for debug
         if broadcast and self.mqtt is not None:
+            # Don't bother storing info in running code - just useful for debug / logging
+            x = Info(mac_address, node_name, category, message)
             self.mqtt.publish("/status/info", str(x))
 
     def emit(self, record: LogRecord):
@@ -124,32 +129,49 @@ class WarningHandler(Handler):
         by the logging config any time any module uses the root logger
         """
         if record.levelno >= ERROR:
-            self.add_error(self.node_name, record.name, record.getMessage())
+            self.add_error(
+                self.mac_address,
+                self.node_name,
+                record.name,
+                record.getMessage(),
+            )
         elif record.levelno == WARNING:
-            self.add_warning(self.node_name, record.name, record.getMessage())
+            self.add_warning(
+                self.mac_address,
+                self.node_name,
+                record.name,
+                record.getMessage(),
+            )
         else:
-            self.add_info(self.node_name, record.name, record.getMessage())
+            self.add_info(
+                self.mac_address,
+                self.node_name,
+                record.name,
+                record.getMessage(),
+            )
 
     def add_warning(
         self,
+        mac_address: str,
         node_name: str,
         category: str,
         message: str,
         broadcast: bool = True,
     ):
-        x = Warning(node_name, category, message)
+        x = Warning(mac_address, node_name, category, message)
         self.warnings.append(x)
         if broadcast and self.mqtt is not None:
             self.mqtt.publish("/status/warnings", str(x))
 
     def add_error(
         self,
+        mac_address: str,
         node_name: str,
         category: str,
         message: str,
         broadcast: bool = True,
     ):
-        x = Error(node_name, category, message)
+        x = Error(mac_address, node_name, category, message)
         self.errors.append(x)
         if broadcast and self.mqtt is not None:
             self.mqtt.publish("/status/errors", str(x))
@@ -180,18 +202,29 @@ class WarningHandler(Handler):
         ]
         return bool(len(current_node_errors) > 0)
 
-    def rx_warnings(self, message: MQTTMessage) -> None:
+    def rx_warnings(self, message_dict: dict[str, str]) -> None:
         """
         Handles the logging of warnings received from other nodes
         """
+        self.add_warning(
+            mac_address=message_dict["mac_address"],
+            node_name=message_dict["node_name"],
+            category=message_dict["category"],
+            message=message_dict["message"],
+            broadcast=False,
+        )
 
-        pass  # self.add_warning(broadcast=False)
-
-    def rx_errors(self, message: MQTTMessage) -> None:
+    def rx_errors(self, message_dict: dict[str, str]) -> None:
         """
         Handles the logging of errors received from other nodes
         """
-        pass
+        self.add_error(
+            mac_address=message_dict["mac_address"],
+            node_name=message_dict["node_name"],
+            category=message_dict["category"],
+            message=message_dict["message"],
+            broadcast=False,
+        )
 
     def tick(self):
         if not self.initialised:

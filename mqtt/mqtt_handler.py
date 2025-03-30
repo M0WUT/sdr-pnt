@@ -85,6 +85,11 @@ class MqttHandler:
         else:
             raise BrokerConnectionError(reason_code)
 
+    @classmethod
+    def message_to_dict(cls, message: mqtt.MQTTMessage) -> dict[str, str]:
+        result = json.loads(message.payload.decode("utf-8"))
+        return result
+
     def on_disconnect(
         self, client, userdata, disconnect_flags, reason_code, properties
     ) -> None:
@@ -98,14 +103,12 @@ class MqttHandler:
 
     def message_handler(self, msg: mqtt.MQTTMessage) -> None:
         if msg.topic in self.callbacks.keys():
-            message = msg.payload.decode("utf-8")
-            self.logger.debug(f"Received MQTT: [{msg.topic}] {message}")
             try:
-                source_node_id = "Unknown device"
-                res = json.loads(message)
-                if "node_name" in res.keys():
-                    source_node_id = res["node_name"]
-                self.callbacks[msg.topic].func(res)
+                message_dict = self.message_to_dict(msg)
+                self.logger.debug(
+                    f"Received MQTT: [{msg.topic}] {message_dict}"
+                )
+                self.callbacks[msg.topic](message_dict)
 
             except UnicodeDecodeError:
                 self.logger.warning("Malformed message received")

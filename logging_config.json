@@ -46,7 +46,7 @@
         },
         "warning_handler": {
             "class": "warning_handler.warning_handler.WarningHandler",
-            "level": "DEBUG"
+            "level": "INFO"
         }
     },
     "loggers": {
