@@ -16,6 +16,9 @@
           - i2c-tools
           - git
           - python3-pip
+    - Set timezone to UTC:
+      community.general.timezone:
+        name: Etc/UTC
 
     - name: Device tree overlay
       ansible.builtin.blockinfile:
