@@ -5,18 +5,6 @@
         "stdout_colour": {
             "()": "coloredlogs.ColoredFormatter",
             "format": "%(levelname)s\t[%(name)s]\t%(asctime)s.%(msecs)03d: %(message)s"
-        },
-        "json": {
-            "()": "logger.json_formatter.JSONFormatter",
-            "fmt_keys": {
-                "level": "levelname",
-                "message": "message",
-                "timestamp": "timestamp",
-                "logger": "name",
-                "module": "module",
-                "function": "funcName",
-                "line": "lineno"
-            }
         }
     },
     "handlers": {
@@ -25,24 +13,6 @@
             "level": "DEBUG",
             "formatter": "stdout_colour",
             "stream": "ext://sys.stdout"
-        },
-        "full_log": {
-            "()": "logger.conditional_path_file_handler.conditional_path_file_handler",
-            "mode": "a+",
-            "level": "INFO",
-            "formatter": "json",
-            "filename": "log/full_log.jsonl",
-            "maxBytes": 100000000,
-            "backupCount": 3
-        },
-        "warning_log": {
-            "()": "logger.conditional_path_file_handler.conditional_path_file_handler",
-            "mode": "a+",
-            "level": "WARNING",
-            "formatter": "json",
-            "filename": "log/warning_log.jsonl",
-            "maxBytes": 100000000,
-            "backupCount": 3
         },
         "warning_handler": {
             "class": "warning_handler.warning_handler.WarningHandler",
@@ -54,8 +24,6 @@
             "level": "DEBUG",
             "handlers": [
                 "stdout",
-                "full_log",
-                "warning_log",
                 "warning_handler"
             ]
         }

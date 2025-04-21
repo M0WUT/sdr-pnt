@@ -7,6 +7,7 @@ from logging import Handler, LogRecord, ERROR, WARNING
 from queue import Queue
 import logging
 from time import sleep
+from pathlib import Path
 
 # Third-party imports
 
@@ -20,19 +21,36 @@ from config import (
     MQTT_BROKER_IP_ADDRESS,
     MQTT_BROKER_PORT,
     NODE_NAME,
+    LOG_FOLDER_NAME,
+    LOG_FULL_NAME,
+    LOG_WARNING_NAME,
 )
 from mqtt.mqtt_handler import MqttHandler, BrokerConnectionError
 from paho.mqtt.client import MQTTMessage
 
 
-@dataclass(frozen=True)
 class Notification:
-    mac_address: str
-    node_name: str
-    category: str
-    message: str
-    creation_time: datetime = datetime.now(tz=timezone.utc)
-    datetime_strf_string: str = "%Y-%m-%dT%H:%M:%S%z"
+    def __init__(
+        self,
+        mac_address: str,
+        node_name: str,
+        category: str,
+        message: str,
+        full_log_file: Path,
+        warning_log_file: Path,
+    ):
+        self.mac_address = mac_address
+        self.node_name = node_name
+        self.category = category
+        self.message = message
+        self.creation_time: datetime = datetime.now(tz=timezone.utc)
+        self.datetime_strf_string: str = "%Y-%m-%dT%H:%M:%S%z"
+        if isinstance(self, (Warning, Error)):
+            with open(warning_log_file, "a+") as file:
+                file.write(str(self) + "\n")
+
+        with open(full_log_file, "a+") as file:
+            file.write(str(self) + "\n")
 
     def __str__(self) -> str:
         return json.dumps(
@@ -81,12 +99,26 @@ class WarningHandler(Handler):
 
     def initialise(self):
         """
-        Because this handler is automatically initialised when the logging handlers are setup
-        It gets a bit messy as you have things making errors before the logging handler is initialised.
+        Because this handler is automatically initialised when the logging handlers are setup,
+        it gets a bit messy as you have things making errors before the logging handler is initialised.
         As such, the initialise that might create errors of its own e.g. connecting to MQTT server
         need to be done separately. This should be called the first time self.tick() is called
         """
+        # Setup logger
         self.logger = logging.getLogger(__name__)
+
+        # Try to save logs on SSD to save wear on eMMC but it might not be there
+        ssd_path = Path("/") / "mnt" / "media" / "nvme"
+        if ssd_path.exists():
+            log_folder = ssd_path / LOG_FOLDER_NAME
+        else:
+            log_folder = Path(LOG_FOLDER_NAME)
+
+        # Make files / folders
+        log_folder.parent.mkdir(parents=True, exist_ok=True)
+        self.warning_log = log_folder / LOG_WARNING_NAME
+        self.full_log = log_folder / LOG_FULL_NAME
+
         while self.mqtt is None:
             try:
                 self.mqtt = MqttHandler(
@@ -109,19 +141,6 @@ class WarningHandler(Handler):
         self.mqtt.register_callback("/status/errors", self.rx_errors)
 
         self.initialised = True
-
-    def add_info(
-        self,
-        mac_address: str,
-        node_name: str,
-        category: str,
-        message: str,
-        broadcast: bool = True,
-    ):
-        if broadcast and self.mqtt is not None:
-            # Don't bother storing info in running code - just useful for debug / logging
-            x = Info(mac_address, node_name, category, message)
-            self.mqtt.publish("/status/info", str(x))
 
     def emit(self, record: LogRecord):
         """
@@ -150,19 +169,6 @@ class WarningHandler(Handler):
                 record.getMessage(),
             )
 
-    def add_warning(
-        self,
-        mac_address: str,
-        node_name: str,
-        category: str,
-        message: str,
-        broadcast: bool = True,
-    ):
-        x = Warning(mac_address, node_name, category, message)
-        self.warnings.append(x)
-        if broadcast and self.mqtt is not None:
-            self.mqtt.publish("/status/warnings", str(x))
-
     def add_error(
         self,
         mac_address: str,
@@ -171,10 +177,57 @@ class WarningHandler(Handler):
         message: str,
         broadcast: bool = True,
     ):
-        x = Error(mac_address, node_name, category, message)
+        x = Error(
+            mac_address,
+            node_name,
+            category,
+            message,
+            self.full_log,
+            self.warning_log,
+        )
         self.errors.append(x)
         if broadcast and self.mqtt is not None:
             self.mqtt.publish("/status/errors", str(x))
+
+    def add_warning(
+        self,
+        mac_address: str,
+        node_name: str,
+        category: str,
+        message: str,
+        broadcast: bool = True,
+    ):
+        x = Warning(
+            mac_address,
+            node_name,
+            category,
+            message,
+            self.full_log,
+            self.warning_log,
+        )
+        self.warnings.append(x)
+        if broadcast and self.mqtt is not None:
+            self.mqtt.publish("/status/warnings", str(x))
+
+    def add_info(
+        self,
+        mac_address: str,
+        node_name: str,
+        category: str,
+        message: str,
+        broadcast: bool = True,
+    ):
+        if broadcast and self.mqtt is not None:
+            # Don't bother storing info in running code - just useful for debug / logging
+            x = Info(
+                mac_address,
+                node_name,
+                category,
+                message,
+                self.full_log,
+                self.warning_log,
+            )
+            self.mqtt.publish("/status/info", str(x))
 
     def _clear_warnings(self):
         self.warnings = []

@@ -11,6 +11,11 @@ from m0wut_drivers.gpio import GPIO, RPiGPIO, Polarity
 # Node Name
 NODE_NAME = "Timing Reference - Primary"
 
+# Logging config
+LOG_FOLDER_NAME = "log"
+LOG_FULL_NAME = "full_log.jsonl"
+LOG_WARNING_NAME = "warning_log.jsonl"
+
 # MQTT Config
 MQTT_BROKER_IP_ADDRESS = "127.0.0.1"
 MQTT_BROKER_PORT = 1883
