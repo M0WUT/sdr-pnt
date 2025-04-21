@@ -78,7 +78,6 @@ def main(is_master: bool = True):
     ][0]
     # Call warning handler tick function for first time to finish initialisation
     warning_handler.tick()
-    mqtt = warning_handler.mqtt
 
     with SFPPrimary(
         i2c_bus=config.I2C_SFP_BUS,
@@ -91,7 +90,6 @@ def main(is_master: bool = True):
         while True:
             sfp.tick()
             warning_handler.tick()
-            mqtt.tick()
             time.sleep(0.1)
 
     # # Wait for time synchronisation

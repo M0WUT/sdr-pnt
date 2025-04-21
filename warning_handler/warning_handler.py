@@ -147,26 +147,50 @@ class WarningHandler(Handler):
         This must be called "emit". This is the handler called automatically
         by the logging config any time any module uses the root logger
         """
+
+        # Message will be JSON format if received from another node
+        # If not, assume it's a string from this node
+        msg = record.getMessage()
+        try:
+            message_dict = json.loads(msg)
+
+            mac_address = message_dict["mac_address"]
+            node_name = message_dict["node_name"]
+            category = message_dict["category"]
+            message = message_dict["message"]
+            broadcast = False
+        except json.JSONDecodeError:
+            mac_address = self.mac_address
+            node_name = self.node_name
+            category = record.name
+            message = msg
+            broadcast = True
+
+        # Save to right place
+
         if record.levelno >= ERROR:
             self.add_error(
-                self.mac_address,
-                self.node_name,
-                record.name,
-                record.getMessage(),
+                mac_address=mac_address,
+                node_name=node_name,
+                category=category,
+                message=message,
+                broadcast=broadcast,
             )
         elif record.levelno == WARNING:
             self.add_warning(
-                self.mac_address,
-                self.node_name,
-                record.name,
-                record.getMessage(),
+                mac_address=mac_address,
+                node_name=node_name,
+                category=category,
+                message=message,
+                broadcast=broadcast,
             )
         else:
             self.add_info(
-                self.mac_address,
-                self.node_name,
-                record.name,
-                record.getMessage(),
+                mac_address=mac_address,
+                node_name=node_name,
+                category=category,
+                message=message,
+                broadcast=broadcast,
             )
 
     def add_error(
@@ -259,30 +283,19 @@ class WarningHandler(Handler):
         """
         Handles the logging of warnings received from other nodes
         """
-        self.add_warning(
-            mac_address=message_dict["mac_address"],
-            node_name=message_dict["node_name"],
-            category=message_dict["category"],
-            message=message_dict["message"],
-            broadcast=False,
-        )
+        self.logger.warning(json.dumps(message_dict))
 
     def rx_errors(self, message_dict: dict[str, str]) -> None:
         """
         Handles the logging of errors received from other nodes
         """
-        self.add_error(
-            mac_address=message_dict["mac_address"],
-            node_name=message_dict["node_name"],
-            category=message_dict["category"],
-            message=message_dict["message"],
-            broadcast=False,
-        )
+        self.logger.error(json.dumps(message_dict))
 
     def tick(self):
         if not self.initialised:
             self.initialise()
         x = datetime.now()
+        self.mqtt.tick()
         if (
             x - self.last_blink_time
         ).total_seconds() > 0.5 * self.blink_period_s:
